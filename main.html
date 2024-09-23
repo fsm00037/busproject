@@ -12,108 +12,98 @@
     </header>
 
     <div class="container">
-        <div class="form-container">
-            <!-- Formulario para añadir conductor -->
-            <section class="form-section">
-                <h2>Añadir Conductor</h2>
-                <form id="driverForm">
-                    <div class="form-group">
-                        <label for="driverName">Nombre del Conductor:</label>
-                        <input type="text" id="driverName" placeholder="Nombre del conductor" required>
-                    </div>
+        <section class="form-section">
+            <h2>Añadir Conductor</h2>
+            <form id="driverForm">
+                <div class="form-group">
+                    <label for="driverName">Nombre del Conductor:</label>
+                    <input type="text" id="driverName" required>
+                </div>
+                <div class="form-group">
+                    <label for="driverHours">Horas Trabajadas Iniciales:</label>
+                    <input type="number" id="driverHours" min="0" value="0" required> h
+                    <input type="number" id="driverMinutes" min="0" max="59" value="0" required> m
+                </div>
+                <button type="submit">Añadir Conductor</button>
+            </form>
+        </section>
 
-                    <div class="form-group">
-                        <label for="driverHours">Horas Trabajadas Iniciales:</label>
-                        <div class="time-inputs">
-                            <input type="number" id="driverHours" min="0" value="0" required> h
-                            <input type="number" id="driverMinutes" min="0" max="59" value="0" required> m
-                            <input type="number" id="driverSeconds" min="0" max="59" value="0" required> s
-                        </div>
-                    </div>
+        <section class="form-section">
+            <h2>Añadir Trabajo</h2>
+            <form id="workForm">
+                <div class="form-group">
+                    <label for="workName">Nombre del Trabajo:</label>
+                    <input type="text" id="workName" required>
+                </div>
+                <div class="form-group">
+                    <label for="workDate">Fecha del Trabajo:</label>
+                    <input type="date" id="workDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="workStartTime">Hora de Inicio:</label>
+                    <input type="time" id="workStartTime" required>
+                </div>
+                <div class="form-group">
+                    <label for="workEndTime">Hora de Fin:</label>
+                    <input type="time" id="workEndTime" required>
+                </div>
+                <button type="submit">Añadir Trabajo</button>
+            </form>
+        </section>
+    </div>
 
-                    <div class="button-group">
-                        <button type="submit" class="btn-primary">Añadir Conductor</button>
-                    </div>
-                </form>
-            </section>
+    <div class="table-section">
+        <h2>Conductores</h2>
+        <table id="driverList">
+            <tr>
+                <th>Nombre</th>
+                <th>Horas Trabajadas</th>
+                <th>Horas Semanales</th>
+                <th>Horas Bisemanales</th>
+                <th>Acciones</th>
+            </tr>
+        </table>
 
-            <!-- Sección para añadir trabajo -->
-            <section class="work-section">
-                <h2>Añadir Trabajo</h2>
-                <form id="workForm">
-                    <div class="form-group">
-                        <label for="workHours">Horas de Trabajo:</label>
-                        <input type="number" id="workHours" min="0" value="0" required>
-                    </div>
-                    <div class="button-group">
-                        <button type="submit" class="btn-primary">Añadir Trabajo</button>
-                    </div>
-                    <!-- Sección para mostrar conductores disponibles al añadir trabajo -->
-                    <div id="availableDriversSection" style="display:none;">
-                        <h3>Conductores Disponibles</h3>
-                        <ul id="availableDriversList"></ul>
-                    </div>
+        <h2>Trabajos Asignados</h2>
+        <table id="workList">
+            <tr>
+                <th>Trabajo</th>
+                <th>Fecha</th>
+                <th>Hora Inicio</th>
+                <th>Hora Fin</th>
+                <th>Conductor Asignado</th>
+            </tr>
+        </table>
+    </div>
 
-                </form>
-            </section>
-        </div>
+    <button id="settingsButton">Ajustes</button>
 
-        <div class="table-section">
-            <h2>Conductores Activos</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nombre</th>
-                        <th>Horas Trabajadas</th>
-                        <th>Horas Semanales</th>
-                        <th>Horas Bisemanales</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody id="driverList">
-                    <!-- Aquí se añadirán los conductores -->
-                </tbody>
-            </table>
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Ajustes</h2>
+            <form id="settingsForm">
+                <label for="maxWorkHours">Máximo de Horas Diarias:</label>
+                <input type="number" id="maxWorkHours" value="9" required>
+                <label for="maxWeeklyHours">Máximo de Horas Semanales:</label>
+                <input type="number" id="maxWeeklyHours" value="56" required>
+                <label for="maxBiweeklyHours">Máximo de Horas Bisemanales:</label>
+                <input type="number" id="maxBiweeklyHours" value="90" required>
+                <label for="minRestHours">Mínimo de Horas de Descanso:</label>
+                <input type="number" id="minRestHours" value="24" required>
+                <button type="submit">Guardar Ajustes</button>
+            </form>
         </div>
     </div>
 
-    <button class="btn-secondary" id="settingsButton">Ajustes</button>
-
-    <!-- Modal de Ajustes -->
-    <div class="modal" id="settingsModal">
+    <div id="availableDriversModal" class="modal">
         <div class="modal-content">
-            <span class="close" id="closeModal">&times;</span>
-            <h2>Ajustes</h2>
-            <form id="settingsForm">
-                <div class="form-group">
-                    <label for="maxWorkHours">Horas máximas de trabajo:</label>
-                    <input type="number" id="maxWorkHours" min="0" value="9" required> horas
-                </div>
-                <div class="form-group">
-                    <label for="minRestHours">Horas mínimas de descanso:</label>
-                    <input type="number" id="minRestHours" min="0" value="24" required> horas
-                </div>
-                <div class="form-group">
-                    <label for="maxWeeklyHours">Horas máximas semanales:</label>
-                    <input type="number" id="maxWeeklyHours" min="0" value="56" required> horas
-                </div>
-                <div class="form-group">
-                    <label for="maxBiweeklyHours">Horas máximas bisemanales:</label>
-                    <input type="number" id="maxBiweeklyHours" min="0" value="90" required> horas
-                </div>
-                <div class="button-group">
-                    <button type="submit" class="btn-primary">Guardar Ajustes</button>
-                </div>
-            </form>
+            <span class="close">&times;</span>
+            <h2>Conductores Disponibles</h2>
+            <ul id="availableDriversList"></ul>
         </div>
     </div>
 
     <script src="app.js"></script>
 </body>
 </html>
-
-
-
-
-
-

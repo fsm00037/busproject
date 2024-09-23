@@ -1,11 +1,10 @@
 class Driver {
-    constructor(name, hoursWorked, maxWorkHours, minRestHours, maxWeeklyHours, maxBiweeklyHours) {
+    constructor(name, maxWorkHours, minRestHours, maxWeeklyHours, maxBiweeklyHours) {
         this.name = name;
-        this.secondsWorked = hoursWorked * 3600; // Guardar horas en segundos
-        this.isRunning = false; // Estado de la ruta (si está en marcha o no)
-        this.weeklySeconds = 0; // Horas trabajadas esta semana (en segundos)
-        this.biweeklySeconds = 0; // Horas trabajadas en las últimas dos semanas
-        this.lastWorkEnd = null; // Última vez que el conductor dejó de trabajar (para calcular el descanso)
+        this.secondsWorked = 0; // Total de segundos trabajados
+        this.weeklySeconds = 0; // Segundos trabajados en la semana
+        this.biweeklySeconds = 0; // Segundos trabajados en dos semanas
+        this.lastWorkEnd = null; // Fecha y hora del último trabajo
         this.restTimeRequired = minRestHours * 3600; // Tiempo mínimo de descanso en segundos
         this.maxWorkSeconds = maxWorkHours * 3600; // Máximo de horas de trabajo en segundos
         this.maxWeeklySeconds = maxWeeklyHours * 3600; // Máximo de horas semanales en segundos
@@ -21,29 +20,15 @@ class Driver {
     getFormattedTime() {
         const hours = Math.floor(this.secondsWorked / 3600);
         const minutes = Math.floor((this.secondsWorked % 3600) / 60);
-        const seconds = Math.floor(this.secondsWorked % 60);
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     }
 
-    getWeeklyTime() {
-        const hours = Math.floor(this.weeklySeconds / 3600);
-        const minutes = Math.floor((this.weeklySeconds % 3600) / 60);
-        return `${hours}h ${minutes}m`;
-    }
-
-    getBiweeklyTime() {
-        const hours = Math.floor(this.biweeklySeconds / 3600);
-        const minutes = Math.floor((this.biweeklySeconds % 3600) / 60);
-        return `${hours}h ${minutes}m`;
-    }
-
-    hasRestedEnough() {
+    hasRestedEnough(newWorkStartTime) {
         if (this.lastWorkEnd === null) {
             return true; // Si nunca ha trabajado, no necesita descansar
         }
 
-        const now = new Date();
-        const timeSinceLastWork = (now - this.lastWorkEnd) / 1000; // Tiempo en segundos
+        const timeSinceLastWork = (new Date(newWorkStartTime) - this.lastWorkEnd) / 1000; // Tiempo en segundos
         return timeSinceLastWork >= this.restTimeRequired;
     }
 
@@ -58,180 +43,148 @@ class Driver {
     endWorkSession() {
         this.lastWorkEnd = new Date(); // Registrar el fin de la sesión de trabajo
     }
-
-    isAvailable() {
-        return this.hasRestedEnough() && !this.hasExceededWeeklyLimit() && !this.hasExceededBiweeklyLimit();
-    }
 }
 
 let drivers = [];
-let timers = [];
-let maxWorkHours = 9;  // Por defecto 9 horas de trabajo
-let minRestHours = 24; // Por defecto 24 horas de descanso
-let maxWeeklyHours = 56; // Por defecto 56 horas semanales
-let maxBiweeklyHours = 90; // Por defecto 90 horas bisemanales
+let works = [];
+let maxWorkHours = 9;  // Por defecto
+let minRestHours = 24; // Por defecto
+let maxWeeklyHours = 56; // Por defecto
+let maxBiweeklyHours = 90; // Por defecto
 
-// Formulario para añadir conductores
 document.getElementById("driverForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const name = document.getElementById("driverName").value;
-    const hours = parseInt(document.getElementById("driverHours").value) || 0;
-    const minutes = parseInt(document.getElementById("driverMinutes").value) || 0;
-    const seconds = parseInt(document.getElementById("driverSeconds").value) || 0;
 
-    const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
-    const driver = new Driver(name, totalSeconds / 3600, maxWorkHours, minRestHours, maxWeeklyHours, maxBiweeklyHours);
+    const driver = new Driver(name, maxWorkHours, minRestHours, maxWeeklyHours, maxBiweeklyHours);
     drivers.push(driver);
 
     renderDrivers();
     e.target.reset();
 });
 
-// Formulario para añadir trabajo
 document.getElementById("workForm").addEventListener("submit", (e) => {
     e.preventDefault();
-    const hours = parseInt(document.getElementById("workHours").value) || 0;
-    const totalSeconds = hours * 3600;
+    const workName = document.getElementById("workName").value;
+    const workDate = document.getElementById("workDate").value;
+    const workStartTime = document.getElementById("workStartTime").value;
+    const workEndTime = document.getElementById("workEndTime").value;
 
-    const availableDrivers = drivers.filter(driver => driver.isAvailable());
-    
-    if (availableDrivers.length === 0) {
-        alert("No hay conductores disponibles para este trabajo.");
-        return;
+    const workDurationInSeconds = (new Date(`${workDate}T${workEndTime}`) - new Date(`${workDate}T${workStartTime}`)) / 1000;
+
+    const availableDrivers = drivers.filter(driver => {
+        const exceedsWeekly = driver.hasExceededWeeklyLimit();
+        const exceedsBiweekly = driver.hasExceededBiweeklyLimit();
+        return driver.hasRestedEnough(`${workDate}T${workStartTime}`) &&
+               !exceedsWeekly &&
+               !exceedsBiweekly &&
+               (driver.secondsWorked + workDurationInSeconds <= driver.maxWorkSeconds);
+    });
+
+    if (availableDrivers.length > 0) {
+        showAvailableDrivers(availableDrivers, workName, workDate, workStartTime, workEndTime);
+    } else {
+        alert("No hay conductores disponibles para esta fecha y horas.");
     }
-
-    showAvailableDrivers(availableDrivers, totalSeconds);
-    e.target.reset();
 });
 
-// Mostrar conductores disponibles
-function showAvailableDrivers(availableDrivers, totalSeconds) {
+function showAvailableDrivers(availableDrivers, workName, workDate, workStartTime, workEndTime) {
     const availableDriversList = document.getElementById("availableDriversList");
-    availableDriversList.innerHTML = ''; // Limpiar lista anterior
+    availableDriversList.innerHTML = ''; // Limpiar la lista
 
-    availableDrivers.forEach((driver, index) => {
-        let listItem = document.createElement("li");
+    availableDrivers.forEach(driver => {
+        const listItem = document.createElement("li");
+        listItem.textContent = driver.name;
 
-        listItem.innerHTML = `
-            ${driver.name} (Horas trabajadas: ${driver.getFormattedTime()})
-            <button onclick="assignWork(${index}, ${totalSeconds})">Asignar trabajo</button>
-        `;
-
+        const assignButton = document.createElement("button");
+        assignButton.textContent = "Asignar";
+        assignButton.onclick = () => {
+            assignWork(driver, workName, workDate, workStartTime, workEndTime);
+            document.getElementById("availableDriversModal").style.display = 'none'; // Cerrar modal
+        };
+        listItem.appendChild(assignButton);
         availableDriversList.appendChild(listItem);
     });
 
-    document.getElementById("availableDriversSection").style.display = 'block'; // Mostrar sección de conductores disponibles
+    document.getElementById("availableDriversModal").style.display = 'block';
 }
 
-// Asignar trabajo al conductor seleccionado
-function assignWork(index, totalSeconds) {
-    const driver = drivers[index];
-    driver.addSeconds(totalSeconds);
+function assignWork(driver, workName, workDate, workStartTime, workEndTime) {
+    const work = {
+        name: workName,
+        date: workDate,
+        startTime: workStartTime,
+        endTime: workEndTime,
+        driver: driver.name
+    };
 
-    alert(`Trabajo asignado a ${driver.name}. Se añadieron ${totalSeconds / 3600} horas.`);
-    renderDrivers();
-
-    document.getElementById("availableDriversSection").style.display = 'none'; // Ocultar lista después de asignar el trabajo
-}
-
-// Iniciar ruta
-function startRoute(index) {
-    const driver = drivers[index];
-
-    if (!driver.hasRestedEnough()) {
-        alert("Este conductor no ha descansado lo suficiente. No puede iniciar una nueva ruta.");
-        return;
-    }
-
-    if (driver.hasExceededWeeklyLimit()) {
-        alert("Este conductor ha excedido el límite de horas semanales.");
-        return;
-    }
-
-    if (driver.hasExceededBiweeklyLimit()) {
-        alert("Este conductor ha excedido el límite de horas bisemanales.");
-        return;
-    }
-
-    driver.isRunning = true;
-
-    if (!timers[index]) {
-        timers[index] = setInterval(() => {
-            driver.addSeconds(1);
-            renderDrivers();
-        }, 1000);
-    }
-}
-
-// Detener ruta
-function stopRoute(index) {
-    drivers[index].isRunning = false;
-
-    if (timers[index]) {
-        clearInterval(timers[index]);
-        delete timers[index];
-    }
-
-    drivers[index].endWorkSession();
+    const workDurationInSeconds = (new Date(`${workDate}T${workEndTime}`) - new Date(`${workDate}T${workStartTime}`)) / 1000;
+    driver.addSeconds(workDurationInSeconds); // Sumar horas al conductor
+    driver.endWorkSession(); // Registrar fin de trabajo
+    works.push(work);
+    renderWorks();
     renderDrivers();
 }
 
-// Eliminar conductor
-function deleteDriver(index) {
-    drivers.splice(index, 1);
-    renderDrivers();
-}
-
-// Renderizar tabla de conductores
 function renderDrivers() {
     const driverList = document.getElementById("driverList");
-    driverList.innerHTML = '';
+    driverList.innerHTML = '<tr><th>Nombre</th><th>Horas Trabajadas</th><th>Acciones</th></tr>';
+    
+    drivers.forEach(driver => {
+        const row = driverList.insertRow();
+        row.insertCell(0).textContent = driver.name;
+        row.insertCell(1).textContent = driver.getFormattedTime();
 
-    drivers.forEach((driver, index) => {
-        let listItem = document.createElement("tr");
-
-        listItem.innerHTML = `
-            <td>${driver.name}</td>
-            <td>${driver.getFormattedTime()}</td>
-            <td>${driver.getWeeklyTime()}</td>
-            <td>${driver.getBiweeklyTime()}</td>
-            <td>
-                <button onclick="editDriver(${index})" class="btn-action">✏️</button>
-                <button onclick="startRoute(${index})" class="btn-action">${driver.isRunning ? '⏸️' : '▶️'}</button>
-                <button onclick="deleteDriver(${index})" class="btn-action">🗑️</button>
-            </td>
-        `;
-
-        driverList.appendChild(listItem);
+        const actionsCell = row.insertCell(2);
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "Eliminar";
+        deleteButton.onclick = () => {
+            drivers = drivers.filter(d => d !== driver);
+            renderDrivers();
+        };
+        actionsCell.appendChild(deleteButton);
     });
 }
 
-// Control de ajustes
+function renderWorks() {
+    const workList = document.getElementById("workList");
+    workList.innerHTML = '<tr><th>Trabajo</th><th>Fecha</th><th>Hora Inicio</th><th>Hora Fin</th><th>Conductor Asignado</th></tr>';
+    
+    works.forEach(work => {
+        const row = workList.insertRow();
+        row.insertCell(0).textContent = work.name;
+        row.insertCell(1).textContent = work.date;
+        row.insertCell(2).textContent = work.startTime;
+        row.insertCell(3).textContent = work.endTime;
+        row.insertCell(4).textContent = work.driver;
+    });
+}
+
 document.getElementById("settingsForm").addEventListener("submit", (e) => {
     e.preventDefault();
-    maxWorkHours = parseInt(document.getElementById("maxWorkHours").value) || 9;
-    minRestHours = parseInt(document.getElementById("minRestHours").value) || 24;
-    maxWeeklyHours = parseInt(document.getElementById("maxWeeklyHours").value) || 56;
-    maxBiweeklyHours = parseInt(document.getElementById("maxBiweeklyHours").value) || 90;
-
-    alert(`Ajustes guardados:\nMáximo de horas de trabajo: ${maxWorkHours} horas\nMínimo de horas de descanso: ${minRestHours} horas\nMáximo de horas semanales: ${maxWeeklyHours} horas\nMáximo de horas bisemanales: ${maxBiweeklyHours} horas`);
+    maxWorkHours = parseInt(document.getElementById("maxWorkHours").value);
+    minRestHours = parseInt(document.getElementById("minRestHours").value);
+    maxWeeklyHours = parseInt(document.getElementById("maxWeeklyHours").value);
+    maxBiweeklyHours = parseInt(document.getElementById("maxBiweeklyHours").value);
+    alert("Ajustes guardados.");
 });
 
-// Control del modal de ajustes
-const settingsModal = document.getElementById("settingsModal");
-const settingsButton = document.getElementById("settingsButton");
-const closeModal = document.getElementById("closeModal");
-
-settingsButton.onclick = function() {
-    settingsModal.style.display = "block";
+// Mostrar el modal de ajustes
+document.getElementById("settingsButton").onclick = function() {
+    document.getElementById("settingsModal").style.display = "block";
 };
 
-closeModal.onclick = function() {
-    settingsModal.style.display = "none";
+// Cerrar el modal de ajustes
+document.querySelector(".close").onclick = function() {
+    document.getElementById("settingsModal").style.display = "none";
 };
 
+// Cerrar el modal al hacer clic fuera de él
 window.onclick = function(event) {
-    if (event.target === settingsModal) {
-        settingsModal.style.display = "none";
-    }
+    const modals = [document.getElementById("settingsModal"), document.getElementById("availableDriversModal")];
+    modals.forEach(modal => {
+        if (event.target === modal) {
+            modal.style.display = "none";
+        }
+    });
 };
